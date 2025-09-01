@@ -58,16 +58,16 @@ const MemoryMatchGame: React.FC = () => {
     });
   }, []);
 
+
   useEffect(() => {
-    let interval: NodeJS.Timeout;
+    let interval: number;
     if (gameState === "playing") {
-      interval = setInterval(() => {
+      interval = window.setInterval(() => {
         setTime((prev: number) => prev + 1);
       }, 1000);
     }
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [gameState]);
-
   const initializeGame = useCallback(() => {
     const symbols = difficultySettings[difficulty].symbols;
     const gameCards: Card[] = [...symbols, ...symbols]
