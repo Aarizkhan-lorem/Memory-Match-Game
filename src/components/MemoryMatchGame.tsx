@@ -1,9 +1,29 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { Play, Pause, RotateCcw, Trophy, Clock, Target } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Play, Pause, RotateCcw, Clock, Target } from "lucide-react";
 
-const MemoryMatchGame = () => {
-  // Card symbols for different difficulty levels
-  const difficultySettings = {
+interface Card {
+  id: number;
+  symbol: string;
+  isFlipped: boolean;
+  isMatched: boolean;
+}
+
+interface DifficultySettings {
+  symbols: string[];
+  timeBonus: number;
+  name: string;
+}
+
+
+interface BestScores {
+  [key: string]: number;
+}
+
+type GameState = "menu" | "playing" | "paused" | "won" | "lost";
+type DifficultyLevel = "easy" | "medium" | "hard";
+
+const MemoryMatchGame: React.FC = () => {
+  const difficultySettings: Record<DifficultyLevel, DifficultySettings> = {
     easy: {
       symbols: ["🐶", "🐱", "🐭", "🐹"],
       timeBonus: 200,
@@ -20,21 +40,17 @@ const MemoryMatchGame = () => {
       name: "Hard (4x4)",
     },
   };
+  const [difficulty, setDifficulty] = useState<DifficultyLevel>("easy");
+  const [cards, setCards] = useState<Card[]>([]);
+  const [flippedCards, setFlippedCards] = useState<number[]>([]);
+  const [matchedCards, setMatchedCards] = useState<number[]>([]);
+  const [moves, setMoves] = useState<number>(0);
+  const [time, setTime] = useState<number>(0);
+  const [gameState, setGameState] = useState<GameState>("menu");
+  const [score, setScore] = useState<number>(0);
+  const [bestScores, setBestScores] = useState<BestScores>({});
 
-  // Game state
-  const [difficulty, setDifficulty] = useState("easy");
-  const [cards, setCards] = useState([]);
-  const [flippedCards, setFlippedCards] = useState([]);
-  const [matchedCards, setMatchedCards] = useState([]);
-  const [moves, setMoves] = useState(0);
-  const [time, setTime] = useState(0);
-  const [gameState, setGameState] = useState("menu"); // 'menu', 'playing', 'paused', 'won', 'lost'
-  const [score, setScore] = useState(0);
-  const [bestScores, setBestScores] = useState({});
-
-  // STEP 1: Load best scores from memory (simulating localStorage)
   useEffect(() => {
-    // In a real app, you'd use: JSON.parse(localStorage.getItem('memoryGameScores') || '{}')
     setBestScores({
       easy: 1500,
       medium: 2100,
@@ -42,22 +58,20 @@ const MemoryMatchGame = () => {
     });
   }, []);
 
-  // STEP 2: Timer logic
   useEffect(() => {
-    let interval;
+    let interval: NodeJS.Timeout;
     if (gameState === "playing") {
       interval = setInterval(() => {
-        setTime((prev) => prev + 1);
+        setTime((prev: number) => prev + 1);
       }, 1000);
     }
     return () => clearInterval(interval);
   }, [gameState]);
 
-  // STEP 3: Initialize game board
   const initializeGame = useCallback(() => {
     const symbols = difficultySettings[difficulty].symbols;
-    const gameCards = [...symbols, ...symbols]
-      .map((symbol, index) => ({
+    const gameCards: Card[] = [...symbols, ...symbols]
+      .map((symbol: string, index: number) => ({
         id: index,
         symbol: symbol,
         isFlipped: false,
@@ -74,79 +88,73 @@ const MemoryMatchGame = () => {
     setGameState("playing");
   }, [difficulty]);
 
-  // STEP 4: Handle card clicks with sound simulation
-  const handleCardClick = (cardId) => {
+  const handleCardClick = (cardId: number): void => {
     if (gameState !== "playing") return;
     if (flippedCards.includes(cardId) || matchedCards.includes(cardId)) return;
     if (flippedCards.length === 2) return;
 
-    // Simulate click sound
-    console.log("🔊 Card flip sound");
+    new Audio("/sounds/card-flip.mp3").play().catch(() => {});
 
-    const newFlippedCards = [...flippedCards, cardId];
+    const newFlippedCards: number[] = [...flippedCards, cardId];
     setFlippedCards(newFlippedCards);
   };
 
-  // STEP 5: Match detection and scoring
   useEffect(() => {
     if (flippedCards.length === 2) {
       const [firstCard, secondCard] = flippedCards;
-      const firstCardData = cards.find((card) => card.id === firstCard);
-      const secondCardData = cards.find((card) => card.id === secondCard);
+      const firstCardData = cards.find((card: Card) => card.id === firstCard);
+      const secondCardData = cards.find((card: Card) => card.id === secondCard);
 
-      if (firstCardData.symbol === secondCardData.symbol) {
-        // Match found!
-        console.log("🔊 Match sound");
-        setMatchedCards((prev) => [...prev, firstCard, secondCard]);
+      if (
+        firstCardData &&
+        secondCardData &&
+        firstCardData.symbol === secondCardData.symbol
+      ) {
+        new Audio("/sounds/match-success.mp3").play().catch(() => {});
+        setMatchedCards((prev: number[]) => [...prev, firstCard, secondCard]);
         setFlippedCards([]);
-        setMoves((prev) => prev + 1);
+        setMoves((prev: number) => prev + 1);
 
-        // Calculate score: base points + time bonus - move penalty
-        const basePoints = 100;
-        const timeBonus = Math.max(
+        const basePoints: number = 100;
+        const timeBonus: number = Math.max(
           0,
           difficultySettings[difficulty].timeBonus - time
         );
-        const movePenalty = Math.max(0, (moves - 5) * 10);
-        setScore((prev) => prev + basePoints + timeBonus - movePenalty);
+        const movePenalty: number = Math.max(0, (moves - 5) * 10);
+        setScore((prev: number) => prev + basePoints + timeBonus - movePenalty);
       } else {
-        // No match
         setTimeout(() => {
           setFlippedCards([]);
         }, 1000);
-        setMoves((prev) => prev + 1);
+        setMoves((prev: number) => prev + 1);
       }
     }
   }, [flippedCards, cards, time, moves, difficulty]);
 
-  // STEP 6: Win condition check
   useEffect(() => {
     if (matchedCards.length === cards.length && cards.length > 0) {
       setGameState("won");
-      console.log("🔊 Win sound");
-
-      // Save best score (simulating localStorage)
+      new Audio("/sounds/game-win.mp3").play().catch(() => {});
       if (!bestScores[difficulty] || score > bestScores[difficulty]) {
-        const newBestScores = { ...bestScores, [difficulty]: score };
+        const newBestScores: BestScores = {
+          ...bestScores,
+          [difficulty]: score,
+        };
         setBestScores(newBestScores);
-        // In real app: localStorage.setItem('memoryGameScores', JSON.stringify(newBestScores));
       }
     }
   }, [matchedCards, cards, score, difficulty, bestScores]);
 
-  // STEP 7: Game controls
-  const pauseGame = () => setGameState("paused");
-  const resumeGame = () => setGameState("playing");
-  const restartGame = () => initializeGame();
+  const pauseGame = (): void => setGameState("paused");
+  const resumeGame = (): void => setGameState("playing");
+  const restartGame = (): void => initializeGame();
 
-  // STEP 8: Format time display
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
+  const formatTime = (seconds: number): string => {
+    const mins: number = Math.floor(seconds / 60);
+    const secs: number = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // STEP 9: Render menu screen
   if (gameState === "menu") {
     return (
       <div className="max-w-4xl mx-auto p-6 bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 min-h-screen">
@@ -160,14 +168,15 @@ const MemoryMatchGame = () => {
               Choose Difficulty
             </h2>
 
-            {Object.entries(difficultySettings).map(([key, setting]) => (
-              <button
-                key={key}
-                onClick={() => {
-                  setDifficulty(key);
-                  initializeGame();
-                }}
-                className={`
+            {Object.entries(difficultySettings).map(
+              ([key, setting]: [string, DifficultySettings]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setDifficulty(key as DifficultyLevel);
+                    initializeGame();
+                  }}
+                  className={`
                   w-full p-4 mb-3 rounded-xl font-semibold transition-all duration-300
                   ${
                     difficulty === key
@@ -175,39 +184,33 @@ const MemoryMatchGame = () => {
                       : "bg-gray-100 hover:bg-gray-200 text-gray-700 hover:shadow-md"
                   }
                 `}
-              >
-                {setting.name}
-                {bestScores[key] && (
-                  <div className="text-sm opacity-75">
-                    Best: {bestScores[key]} pts
-                  </div>
-                )}
-              </button>
-            ))}
-
-            
+                >
+                  {setting.name}
+                  {bestScores[key] && (
+                    <div className="text-sm opacity-75">
+                      Best: {bestScores[key]} pts
+                    </div>
+                  )}
+                </button>
+              )
+            )}
           </div>
         </div>
       </div>
     );
   }
 
-  // STEP 10: Render leaderboard
-  
-
-  // STEP 11: Main game interface
-  const gridCols = difficulty === "easy" ? "grid-cols-4" : "grid-cols-4";
+  const gridCols: string =
+    difficulty === "easy" ? "grid-cols-4" : "grid-cols-4";
 
   return (
     <div className="max-w-4xl mx-auto p-4 bg-gradient-to-br from-indigo-100 via-purple-50 to-pink-100 min-h-screen">
-      {/* Header with controls */}
       <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-xl mb-6">
         <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
           <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">
             Memory Match
           </h1>
 
-          {/* Stats */}
           <div className="flex items-center gap-6 text-lg">
             <div className="flex items-center gap-2 text-blue-600">
               <Target size={20} />
@@ -222,12 +225,12 @@ const MemoryMatchGame = () => {
             </div>
           </div>
 
-          {/* Controls */}
           <div className="flex items-center gap-2">
             {gameState === "playing" && (
               <button
                 onClick={pauseGame}
                 className="p-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-all duration-200 hover:scale-105"
+                aria-label="Pause game"
               >
                 <Pause size={20} />
               </button>
@@ -236,6 +239,7 @@ const MemoryMatchGame = () => {
               <button
                 onClick={resumeGame}
                 className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200 hover:scale-105"
+                aria-label="Resume game"
               >
                 <Play size={20} />
               </button>
@@ -243,6 +247,7 @@ const MemoryMatchGame = () => {
             <button
               onClick={restartGame}
               className="p-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all duration-200 hover:scale-105"
+              aria-label="Restart game"
             >
               <RotateCcw size={20} />
             </button>
@@ -255,7 +260,6 @@ const MemoryMatchGame = () => {
           </div>
         </div>
 
-        {/* Difficulty and best score display */}
         <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
           <span className="text-gray-600">
             Difficulty:{" "}
@@ -274,7 +278,6 @@ const MemoryMatchGame = () => {
         </div>
       </div>
 
-      {/* Pause overlay */}
       {gameState === "paused" && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-8 shadow-2xl text-center">
@@ -291,12 +294,11 @@ const MemoryMatchGame = () => {
         </div>
       )}
 
-      {/* Game board */}
       <div className={`grid ${gridCols} gap-3 max-w-lg mx-auto mb-6`}>
-        {cards.map((card) => {
-          const isFlipped =
+        {cards.map((card: Card) => {
+          const isFlipped: boolean =
             flippedCards.includes(card.id) || matchedCards.includes(card.id);
-          const isMatched = matchedCards.includes(card.id);
+          const isMatched: boolean = matchedCards.includes(card.id);
 
           return (
             <div
@@ -326,6 +328,16 @@ const MemoryMatchGame = () => {
                 transformStyle: "preserve-3d",
                 animation: isFlipped ? "flipCard 0.6s ease-in-out" : "",
               }}
+              role="button"
+              tabIndex={0}
+              aria-label={`Card ${card.id + 1}${
+                isFlipped ? `, ${card.symbol}` : ", hidden"
+              }`}
+              onKeyDown={(e: React.KeyboardEvent) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  handleCardClick(card.id);
+                }
+              }}
             >
               <div
                 className={`
@@ -341,7 +353,6 @@ const MemoryMatchGame = () => {
         })}
       </div>
 
-      {/* Win/Loss messages */}
       {gameState === "won" && (
         <div className="bg-gradient-to-r from-green-400 to-emerald-500 text-white rounded-2xl p-6 text-center shadow-2xl mb-6 animate-bounce">
           <h2 className="text-3xl font-bold mb-2">🎉 Congratulations!</h2>
@@ -374,7 +385,6 @@ const MemoryMatchGame = () => {
         </div>
       )}
 
-      {/* Game info panel */}
       <div className="bg-white/70 backdrop-blur-sm rounded-xl p-4 shadow-lg">
         <h3 className="text-lg font-bold text-gray-800 mb-2">How to Play:</h3>
         <div className="grid md:grid-cols-2 gap-4 text-gray-600">
@@ -391,8 +401,7 @@ const MemoryMatchGame = () => {
         </div>
       </div>
 
-      {/* CSS Animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes flipCard {
           0% {
             transform: rotateY(0deg);
