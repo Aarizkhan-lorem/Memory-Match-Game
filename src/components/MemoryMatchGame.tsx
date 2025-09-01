@@ -59,15 +59,16 @@ const MemoryMatchGame: React.FC = () => {
   }, []);
 
 
-  useEffect(() => {
-    let interval: number;
-    if (gameState === "playing") {
-      interval = window.setInterval(() => {
-        setTime((prev: number) => prev + 1);
-      }, 1000);
-    }
-    return () => window.clearInterval(interval);
-  }, [gameState]);
+   useEffect(() => {
+     let interval: number;
+     if (gameState === "playing") {
+       interval = setInterval(() => {
+         setTime((prev: number) => prev + 1);
+       }, 1000);
+     }
+     return () => clearInterval(interval);
+   }, [gameState]);
+
   const initializeGame = useCallback(() => {
     const symbols = difficultySettings[difficulty].symbols;
     const gameCards: Card[] = [...symbols, ...symbols]
@@ -95,15 +96,21 @@ const MemoryMatchGame: React.FC = () => {
 
     new Audio("/sounds/card-flip.mp3").play().catch(() => {});
 
-    const newFlippedCards: number[] = [...flippedCards, cardId];
+    const newFlippedCards = [...flippedCards, cardId];
     setFlippedCards(newFlippedCards);
+
+    // ✅ If this was the second flip, count it as one move
+    if (newFlippedCards.length === 2) {
+      setMoves((prev) => prev + 1);
+    }
   };
+
 
   useEffect(() => {
     if (flippedCards.length === 2) {
       const [firstCard, secondCard] = flippedCards;
-      const firstCardData = cards.find((card: Card) => card.id === firstCard);
-      const secondCardData = cards.find((card: Card) => card.id === secondCard);
+      const firstCardData = cards.find((c) => c.id === firstCard);
+      const secondCardData = cards.find((c) => c.id === secondCard);
 
       if (
         firstCardData &&
@@ -111,25 +118,27 @@ const MemoryMatchGame: React.FC = () => {
         firstCardData.symbol === secondCardData.symbol
       ) {
         new Audio("/sounds/match-success.mp3").play().catch(() => {});
-        setMatchedCards((prev: number[]) => [...prev, firstCard, secondCard]);
-        setFlippedCards([]);
-        setMoves((prev: number) => prev + 1);
+        setMatchedCards((prev) => [...prev, firstCard, secondCard]);
 
-        const basePoints: number = 100;
-        const timeBonus: number = Math.max(
+        const basePoints = 100;
+        const timeBonus = Math.max(
           0,
           difficultySettings[difficulty].timeBonus - time
         );
-        const movePenalty: number = Math.max(0, (moves - 5) * 10);
-        setScore((prev: number) => prev + basePoints + timeBonus - movePenalty);
+        const movePenalty = Math.max(0, (moves - 5) * 10);
+        setScore((prev) => prev + basePoints + timeBonus - movePenalty);
+
+        setFlippedCards([]);
       } else {
         setTimeout(() => {
           setFlippedCards([]);
         }, 1000);
-        setMoves((prev: number) => prev + 1);
       }
     }
   }, [flippedCards, cards, time, moves, difficulty]);
+
+
+
 
   useEffect(() => {
     if (matchedCards.length === cards.length && cards.length > 0) {
