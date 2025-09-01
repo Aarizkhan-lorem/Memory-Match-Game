@@ -97,18 +97,6 @@ The game automatically adapts to different screen sizes:
 - **Tablet**: Optimized grid spacing and touch-friendly buttons  
 - **Mobile**: Stacked layout with larger touch targets
 
-## 🏗️ Project Structure
-
-```
-src/
-├── components/
-│   └── MemoryMatchGame.jsx    # Main game component
-├── styles/
-│   └── globals.css            # Tailwind imports
-├── utils/
-│   └── gameLogic.js           # Game utility functions (optional)
-└── App.js                     # Root component
-```
 
 ## 🔧 Key Components Breakdown
 
